@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <title>Timezones in KML</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>My App</title>
+    <!-- Path to Framework7 Library CSS-->
+    <link rel="stylesheet" href="css/framework7.ios.min.css">
+    <link rel="stylesheet" href="css/framework7.ios.colors.min.css">
+    <!-- Path to your custom app styles-->
+    <link rel="stylesheet" href="css/my-app.css">
+	
+	 <!--<link rel="stylesheet" href="ol/ol.css" type="text/css">-->
+    <style>
+      .map {
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+	<!--<script src="ol/ol.js" type="text/javascript"></script>-->
+	<link rel="stylesheet" href="https://openlayers.org/en/v4.3.2/css/ol.css" type="text/css">
+	<script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
+	<script src="https://openlayers.org/en/v4.3.2/build/ol.js"></script>
+    <script src="https://code.jquery.com/jquery-2.2.3.min.js"></script>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+  </head>
+  <body>
+    <!-- Status bar overlay for fullscreen mode-->
+    <div class="statusbar-overlay"></div>
+    <!-- Panels overlay-->
+    <div class="panel-overlay"></div>
+    <!-- Left panel with reveal effect-->
+    <div class="panel panel-left panel-reveal">
+      <div class="content-block">
+        <p>Left panel content goes here</p>
+      </div>
+    </div>
+    <!-- Right panel with cover effect-->
+    <div class="panel panel-right panel-cover">
+      <div class="content-block">
+        <p>Right panel content goes here</p>
+      </div>
+    </div>
+    <!-- Views-->
+    <div class="views">
+      <!-- Your main view, should have "view-main" class-->
+      <div class="view view-main">
+        <!-- Top Navbar-->
+        <div class="navbar">
+          <div class="navbar-inner">
+            <!-- We have home navbar without left link-->
+            <div class="center sliding">VTMap</div>
+            <div class="right">
+              <!-- Right link contains only icon - additional "icon-only" class--><a href="#" class="link icon-only open-panel"> <i class="icon icon-bars"></i></a>
+            </div>
+          </div>
+        </div>
+        <!-- Pages, because we need fixed-through navbar and toolbar, it has additional appropriate classes-->
+        <div class="pages navbar-through toolbar-through">
+          <!-- Page, data-page contains page name-->
+          <div data-page="index" class="page">
+            <!-- Scrollable page content-->
+            <div class="page-content">
+              <div class="content-block-title">Welcome To My First App</div>
+              <div class="content-block">
+                <div class="content-block-inner" style="height:300px;">
+                 <!--<p>Couple of worlds here because my app is so awesome!</p>
+                  <p>Duis sed erat ac eros ultrices pharetra id ut tellus. Praesent rhoncus enim ornare ipsum aliquet ultricies. Pellentesque sodales erat quis elementum sagittis.</p> -->
+                 <!--here my map will appear-->
+				 
+				 <!--openlayer code-->
+				  <div id="map" class="map"><div id="info"></div></div>
+				  <script>
+      /*
+       * Compute the style of the feature.  Here we want the opacity of polygons to
+       * be based on the offset from local noon.  For example, a timezone where it is
+       * currently noon would have an opacity of 0.75.  And a timezone where it is
+       * currently midnight would have an opacity of 0.  This doesn't account for
+       * daylight savings, so don't use it to plan your vacation.
+       */
+      var styleFunction = function(feature) {
+        var offset = 0;
+        var name = feature.get('name'); // e.g. GMT -08:30
+        var match = name.match(/([\-+]\d{2}):(\d{2})$/);
+        if (match) {
+          var hours = parseInt(match[1], 10);
+          var minutes = parseInt(match[2], 10);
+          offset = 60 * hours + minutes;
+        }
+        var date = new Date();
+        var local = new Date(date.getTime() +
+            (date.getTimezoneOffset() + offset) * 60000);
+        // offset from local noon (in hours)
+        var delta = Math.abs(12 - local.getHours() + (local.getMinutes() / 60));
+        if (delta > 12) {
+          delta = 24 - delta;
+        }
+        var opacity = 0.75 * (1 - delta / 12);
+        return new ol.style.Style({
+          fill: new ol.style.Fill({
+            color: [0xff, 0xff, 0x33, opacity]
+          }),
+          stroke: new ol.style.Stroke({
+            color: '#ffffff'
+          })
+        });
+      };
+
+      var vector = new ol.layer.Vector({
+        source: new ol.source.Vector({
+          url: 'https://openlayers.org/en/v4.3.2/examples/data/kml/timezones.kml',
+          format: new ol.format.KML({
+            extractStyles: false
+          })
+        }),
+        style: styleFunction
+      });
+
+      var raster = new ol.layer.Tile({
+        source: new ol.source.Stamen({
+          layer: 'toner'
+        })
+      });
+
+      var map = new ol.Map({
+        layers: [raster, vector],
+        target: 'map',
+        view: new ol.View({
+          center: [0, 0],
+          zoom: 2
+        })
+      });
+
+      var info = $('#info');
+      info.tooltip({
+        animation: false,
+        trigger: 'manual'
+      });
+
+      var displayFeatureInfo = function(pixel) {
+        info.css({
+          left: pixel[0] + 'px',
+          top: (pixel[1] - 15) + 'px'
+        });
+        var feature = map.forEachFeatureAtPixel(pixel, function(feature) {
+          return feature;
+        });
+        if (feature) {
+          info.tooltip('hide')
+              .attr('data-original-title', feature.get('name'))
+              .tooltip('fixTitle')
+              .tooltip('show');
+        } else {
+          info.tooltip('hide');
+        }
+      };
+
+      map.on('pointermove', function(evt) {
+        if (evt.dragging) {
+          info.tooltip('hide');
+          return;
+        }
+        displayFeatureInfo(map.getEventPixel(evt.originalEvent));
+      });
+
+      map.on('click', function(evt) {
+        displayFeatureInfo(evt.pixel);
+      });
+    </script>
+				 
+				 
+				 
+				 <!--<script type="text/javascript">-->
+				 <!-- Placing new js file which is made as a separate js file -->
+				 <!--<script src="myscript/myjs.js" type="text/javascript"></script>
+				 <script src="ol/ol.js" type="text/javascript"></script> -->
+				</div>
+              </div>
+              <div class="content-block-title">What about simple navigation?</div>
+              <div class="list-block">
+                <ul>
+                  <li><a href="about.html" class="item-link">
+                      <div class="item-content">
+                        <div class="item-inner"> 
+                          <div class="item-title">About</div>
+                        </div>
+                      </div></a></li>
+                  <li><a href="services.html" class="item-link">
+                      <div class="item-content"> 
+                        <div class="item-inner">
+                          <div class="item-title">Services</div>
+                        </div>
+                      </div></a></li>
+                  <li><a href="form.html" class="item-link">
+                      <div class="item-content"> 
+                        <div class="item-inner">
+                          <div class="item-title">Form</div>
+                        </div>
+                      </div></a></li>
+                </ul>
+              </div>
+              <div class="content-block-title">Side panels</div>
+              <div class="content-block">
+                <div class="row">
+                  <div class="col-50"><a href="#" data-panel="left" class="button open-panel">Left Panel</a></div>
+                  <div class="col-50"><a href="#" data-panel="right" class="button open-panel">Right Panel</a></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Bottom Toolbar-->
+        <div class="toolbar">
+          <div class="toolbar-inner"><a href="#" class="link">Link 1</a><a href="#" class="link">Link 2</a></div>
+        </div>
+      </div>
+    </div>
+    <!-- Path to Framework7 Library JS-->
+    <script type="text/javascript" src="js/framework7.min.js"></script>
+    <!-- Path to your app js-->
+    <script type="text/javascript" src="js/my-app.js"></script>
+  </body>
+</html>
